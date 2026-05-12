@@ -1,7 +1,13 @@
 # ── Stage 1: build ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:22-alpine3.22 AS builder
+
+RUN apk update && apk upgrade --no-cache
+
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 WORKDIR /app
+
 
 COPY package*.json ./
 RUN npm ci
@@ -10,7 +16,7 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: serve ──────────────────────────────────────────────────────────
-FROM nginx:alpine AS runner
+FROM nginx:stable-alpine3.22 AS runner
 
 # nginx lee /etc/nginx/templates/*.template y aplica envsubst automáticamente,
 # lo que permite usar $PORT que Render inyecta en tiempo de ejecución.
