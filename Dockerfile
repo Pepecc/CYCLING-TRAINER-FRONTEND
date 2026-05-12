@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: serve ──────────────────────────────────────────────────────────
-FROM nginx:stable-alpine3.22 AS runner
+FROM nginx:alpine3.22 AS runner
 
 # nginx lee /etc/nginx/templates/*.template y aplica envsubst automáticamente,
 # lo que permite usar $PORT que Render inyecta en tiempo de ejecución.
