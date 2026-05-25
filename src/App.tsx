@@ -12,7 +12,7 @@ export function App() {
 
   return (
     <>
-      {!state.token ? (
+      {!state.uid ? (
         <AuthScreen />
       ) : (
         <div className="app-screen">
@@ -24,7 +24,7 @@ export function App() {
         </div>
       )}
       {state.showProfileModal && <ProfileModal />}
-      {state.token && state.showWahooModal && state.wahooConnected === false && <WahooConnectModal />}
+      {state.uid && state.showWahooModal && state.wahooConnected === false && <WahooConnectModal />}
       <Notification />
     </>
   )

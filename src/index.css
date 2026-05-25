@@ -145,6 +145,22 @@ body {
   padding: 0.5rem 0.75rem;
 }
 
+.auth-name-row {
+  display: grid;
+  /* grid-template-columns: 1fr 1fr; */
+  gap: 0.75rem;
+}
+
+.auth-verify-message {
+  text-align: center;
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+.auth-verify-message strong { color: var(--text); }
+.auth-verify-message p + p { margin-top: 0.5rem; }
+
 /* APP LAYOUT */
 .app-screen {
   flex: 1;

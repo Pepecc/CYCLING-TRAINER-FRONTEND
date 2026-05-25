@@ -1,9 +1,18 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile as updateFirebaseProfile,
+  sendEmailVerification,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+} from 'firebase/auth'
+import { auth } from '../firebase'
 import { apiFetch } from '../api/client'
 import type { Profile, Message, ConversationSummary } from '../types'
 
 interface AppState {
-  token: string | null
+  uid: string | null
   email: string | null
   conversationId: string | null
   conversationTitle: string | null
@@ -20,8 +29,8 @@ interface AppState {
 interface AppContextValue {
   state: AppState
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string) => Promise<void>
-  logout: () => void
+  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
+  logout: () => Promise<void>
   loadConversations: () => Promise<void>
   loadConversation: (id: string) => Promise<void>
   newConversation: () => void
@@ -41,8 +50,8 @@ const AppContext = createContext<AppContextValue | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>({
-    token: localStorage.getItem('cc_token'),
-    email: localStorage.getItem('cc_email'),
+    uid: null,
+    email: null,
     conversationId: null,
     conversationTitle: null,
     conversations: [],
@@ -68,10 +77,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [set])
 
   const loadProfile = useCallback(async () => {
-    const token = localStorage.getItem('cc_token')
-    if (!token) return
+    if (!auth.currentUser) return
     try {
-      const res = await apiFetch('/profile', token)
+      const res = await apiFetch('/profile')
       if (res.ok) {
         const data = await res.json()
         set({ profile: data.profile })
@@ -80,10 +88,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [set])
 
   const loadConversations = useCallback(async () => {
-    const token = localStorage.getItem('cc_token')
-    if (!token) return
+    if (!auth.currentUser) return
     try {
-      const res = await apiFetch('/chat/conversations', token)
+      const res = await apiFetch('/chat/conversations')
       if (res.ok) {
         const data = await res.json()
         set({ conversations: data.conversations })
@@ -92,10 +99,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [set])
 
   const checkWahooStatus = useCallback(async () => {
-    const token = localStorage.getItem('cc_token')
-    if (!token) return
+    if (!auth.currentUser) return
     try {
-      const res = await apiFetch('/wahoo/status', token)
+      const res = await apiFetch('/wahoo/status')
       if (res.ok) {
         const data = await res.json()
         set({ wahooConnected: data.connected, showWahooModal: !data.connected })
@@ -104,10 +110,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [set])
 
   const connectWahoo = useCallback(async () => {
-    const token = localStorage.getItem('cc_token')
-    if (!token) return
+    if (!auth.currentUser) return
     try {
-      const res = await apiFetch('/wahoo/connect-url', token)
+      const res = await apiFetch('/wahoo/connect-url')
       if (res.ok) {
         const data = await res.json()
         window.location.href = data.url
@@ -131,53 +136,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({}, '', window.location.pathname)
     }
 
-    if (state.token) {
-      Promise.all([loadConversations(), loadProfile(), checkWahooStatus()])
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        set({ uid: firebaseUser.uid, email: firebaseUser.email })
+        await Promise.all([loadConversations(), loadProfile(), checkWahooStatus()])
+      } else {
+        set({
+          uid: null,
+          email: null,
+          conversationId: null,
+          conversationTitle: null,
+          conversations: [],
+          messages: [],
+          profile: null,
+          wahooConnected: null,
+          showWahooModal: false,
+        })
+      }
+    })
+
+    return unsubscribe
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await apiFetch('/auth/login', null, {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Error desconocido')
-
-    localStorage.setItem('cc_token', data.token)
-    localStorage.setItem('cc_email', data.user.email)
-    set({ token: data.token, email: data.user.email })
-    await Promise.all([loadConversations(), loadProfile(), checkWahooStatus()])
-  }, [set, loadConversations, loadProfile, checkWahooStatus])
-
-  const register = useCallback(async (email: string, password: string) => {
-    const res = await apiFetch('/auth/register', null, {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Error desconocido')
+    const result = await signInWithEmailAndPassword(auth, email, password)
+    if (!result.user.emailVerified) {
+      await firebaseSignOut(auth)
+      throw new Error('Debes verificar tu email antes de entrar. Revisa tu bandeja de entrada.')
+    }
+    // onAuthStateChanged carga el resto del estado
   }, [])
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('cc_token')
-    localStorage.removeItem('cc_email')
-    set({
-      token: null,
-      email: null,
-      conversationId: null,
-      conversationTitle: null,
-      conversations: [],
-      messages: [],
-      profile: null,
-    })
-  }, [set])
+  const register = useCallback(async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+  ) => {
+    const result = await createUserWithEmailAndPassword(auth, email, password)
+    const displayName = [firstName, lastName].filter(Boolean).join(' ')
+    if (displayName) {
+      await updateFirebaseProfile(result.user, { displayName })
+    }
+    await sendEmailVerification(result.user)
+    await firebaseSignOut(auth)
+  }, [])
+
+  const logout = useCallback(async () => {
+    await firebaseSignOut(auth)
+  }, [])
 
   const loadConversation = useCallback(async (id: string) => {
-    const token = localStorage.getItem('cc_token')
-    if (!token) return
+    if (!auth.currentUser) return
     try {
-      const res = await apiFetch(`/chat/conversations/${id}`, token)
+      const res = await apiFetch(`/chat/conversations/${id}`)
       if (!res.ok) return
       const data = await res.json()
       const conv = data.conversation
@@ -194,8 +206,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [set])
 
   const sendMessage = useCallback(async (content: string) => {
-    const token = localStorage.getItem('cc_token')
-    if (!token) return
+    if (!auth.currentUser) return
 
     let currentConvId: string | null = null
     setState(prev => {
@@ -204,7 +215,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
 
     try {
-      const res = await apiFetch('/chat/message', token, {
+      const res = await apiFetch('/chat/message', {
         method: 'POST',
         body: JSON.stringify({ content, conversationId: currentConvId }),
       })
@@ -237,9 +248,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [loadConversations])
 
   const saveProfile = useCallback(async (data: Partial<Profile>) => {
-    const token = localStorage.getItem('cc_token')
-    if (!token) return
-    const res = await apiFetch('/profile', token, {
+    if (!auth.currentUser) return
+    const res = await apiFetch('/profile', {
       method: 'PUT',
       body: JSON.stringify(data),
     })
@@ -249,7 +259,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     showNotification('Perfil guardado ✓')
   }, [set, showNotification])
 
-  const openProfileModal = useCallback(() => set({ showProfileModal: true }), [set])
+  const openProfileModal  = useCallback(() => set({ showProfileModal: true }),  [set])
   const closeProfileModal = useCallback(() => set({ showProfileModal: false }), [set])
 
   return (
