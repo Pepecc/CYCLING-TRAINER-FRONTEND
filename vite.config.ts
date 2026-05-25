@@ -4,7 +4,7 @@ import EnvironmentPlugin from 'vite-plugin-environment'
 import dotenv from 'dotenv'
 
 export default defineConfig({
- plugins: [react(), EnvironmentPlugin('all', { prefix: 'VITE_' })],
+ plugins: [react()],
   server: {
     port: 5173,
     proxy: {
