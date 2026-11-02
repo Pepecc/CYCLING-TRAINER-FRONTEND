@@ -23,7 +23,7 @@ export function MessageList() {
   return (
     <div className="messages">
       {state.messages.map((msg, i) => (
-        <MessageBubble key={i} message={msg} />
+        <MessageBubble key={msg.id ?? `local-${i}`} message={msg} />
       ))}
       {state.loading && <TypingIndicator />}
       <div ref={bottomRef} />
