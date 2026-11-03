@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../../context/AppContext'
-import { computeZones, computeWperKg } from '../../utils/powerZones'
+import { computeZones, computeHrZones, computeWperKg } from '../../utils/powerZones'
 import type { Experience } from '../../types'
 
 export function ProfileModal() {
@@ -23,6 +23,8 @@ export function ProfileModal() {
 
   const ftpNum = parseInt(ftp) || 0
   const weightNum = parseFloat(weight) || 0
+  const maxHrNum = parseInt(maxHr) || 0
+  const restingHrNum = parseInt(restingHr) || 0
 
   async function handleSave() {
     setError('')
@@ -131,6 +133,23 @@ export function ProfileModal() {
                   <span className="zone-swatch" style={{ background: z.color }} />
                   <span className="zone-label">{z.label}</span>
                   <span className="zone-range">{z.max === null ? `${z.min}w +` : `${z.min}–${z.max}w`}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {maxHrNum > restingHrNum && restingHrNum > 0 && (
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: '6px' }}>
+              Zonas de FC
+            </div>
+            <div className="zones-table">
+              {computeHrZones(maxHrNum, restingHrNum).map(z => (
+                <div key={z.label} className="zone-row">
+                  <span className="zone-swatch" style={{ background: z.color }} />
+                  <span className="zone-label">{z.label}</span>
+                  <span className="zone-range">{`${z.min}–${z.max} ppm`}</span>
                 </div>
               ))}
             </div>

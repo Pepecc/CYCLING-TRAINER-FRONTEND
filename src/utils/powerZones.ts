@@ -18,3 +18,17 @@ export function computeZones(ftp: number): Array<{ label: string; color: string;
     max: hi === null ? null : Math.round(ftp * hi),
   }))
 }
+
+// Karvonen 5-zone model on heart rate reserve — same thresholds as CyclistProfile.heartRateZones in the backend
+const HR_ZONE_RANGES: Array<[number, number]> = [[0.50, 0.60], [0.60, 0.70], [0.70, 0.80], [0.80, 0.90], [0.90, 1.00]]
+const HR_ZONE_COLORS = ['#444', '#4a7c59', '#e9c46a', '#f4a261', '#d62828']
+
+export function computeHrZones(maxHr: number, restingHr: number): Array<{ label: string; color: string; min: number; max: number }> {
+  const bpm = (f: number) => Math.round(restingHr + f * (maxHr - restingHr))
+  return HR_ZONE_RANGES.map(([lo, hi], i) => ({
+    label: ZONE_LABELS[i],
+    color: HR_ZONE_COLORS[i],
+    min: i === 0 ? bpm(lo) : bpm(lo) + 1,
+    max: bpm(hi),
+  }))
+}
