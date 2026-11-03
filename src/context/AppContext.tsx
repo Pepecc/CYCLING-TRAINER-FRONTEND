@@ -11,6 +11,19 @@ import { auth } from '../firebase'
 import { apiFetch } from '../api/client'
 import type { Profile, Message, ConversationSummary } from '../types'
 
+const WAHOO_DISMISSED_KEY = 'wahooModalDismissed'
+
+function readDismissed(): boolean {
+  try { return localStorage.getItem(WAHOO_DISMISSED_KEY) === '1' } catch { return false }
+}
+
+function writeDismissed(value: boolean): void {
+  try {
+    if (value) localStorage.setItem(WAHOO_DISMISSED_KEY, '1')
+    else localStorage.removeItem(WAHOO_DISMISSED_KEY)
+  } catch {}
+}
+
 interface AppState {
   uid: string | null
   email: string | null
@@ -22,6 +35,7 @@ interface AppState {
   loading: boolean
   showProfileModal: boolean
   showWahooModal: boolean
+  showWorkoutsModal: boolean
   wahooConnected: boolean | null
   notification: string | null
 }
@@ -41,7 +55,12 @@ interface AppContextValue {
   closeProfileModal: () => void
   checkWahooStatus: () => Promise<void>
   connectWahoo: () => Promise<void>
+  disconnectWahoo: () => Promise<void>
+  openWahooModal: () => void
   dismissWahooModal: () => void
+  openWorkoutsModal: () => void
+  closeWorkoutsModal: () => void
+  analyzeWorkout: (workoutId: number) => Promise<void>
   showNotification: (msg: string) => void
   clearNotification: () => void
 }
@@ -60,6 +79,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loading: false,
     showProfileModal: false,
     showWahooModal: false,
+    showWorkoutsModal: false,
     wahooConnected: null,
     notification: null,
   })
@@ -104,7 +124,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await apiFetch('/wahoo/status')
       if (res.ok) {
         const data = await res.json()
-        set({ wahooConnected: data.connected, showWahooModal: !data.connected })
+        // Only nag about connecting Wahoo until the user says "Ahora no" once
+        set({ wahooConnected: data.connected, showWahooModal: !data.connected && !readDismissed() })
       }
     } catch {}
   }, [set])
@@ -113,21 +134,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!auth.currentUser) return
     try {
       const res = await apiFetch('/wahoo/connect-url')
-      if (res.ok) {
-        const data = await res.json()
-        window.location.href = data.url
-      }
-    } catch {}
-  }, [])
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      window.location.href = data.url
+    } catch {
+      showNotification('No se pudo iniciar la conexión con Wahoo')
+    }
+  }, [showNotification])
+
+  const disconnectWahoo = useCallback(async () => {
+    if (!auth.currentUser) return
+    const res = await apiFetch('/wahoo/disconnect', { method: 'DELETE' })
+    if (!res.ok) {
+      showNotification('No se pudo desconectar Wahoo')
+      return
+    }
+    set({ wahooConnected: false, showWorkoutsModal: false })
+    showNotification('Wahoo desconectado')
+  }, [set, showNotification])
+
+  const openWahooModal = useCallback(() => {
+    set({ showWahooModal: true, showProfileModal: false })
+  }, [set])
 
   const dismissWahooModal = useCallback(() => {
+    writeDismissed(true)
     set({ showWahooModal: false })
   }, [set])
+
+  const openWorkoutsModal  = useCallback(() => set({ showWorkoutsModal: true }),  [set])
+  const closeWorkoutsModal = useCallback(() => set({ showWorkoutsModal: false }), [set])
 
   useEffect(() => {
     // Handle Wahoo OAuth callback params
     const params = new URLSearchParams(window.location.search)
     if (params.get('wahoo_connected') === 'true') {
+      writeDismissed(false)
       set({ wahooConnected: true, showWahooModal: false })
       showNotification('Wahoo conectado. Tus entrenamientos ya están disponibles.')
       window.history.replaceState({}, '', window.location.pathname)
@@ -151,6 +193,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           profile: null,
           wahooConnected: null,
           showWahooModal: false,
+          showWorkoutsModal: false,
         })
       }
     })
@@ -211,7 +254,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let currentConvId: string | null = null
     setState(prev => {
       currentConvId = prev.conversationId
-      return { ...prev, loading: true, messages: [...prev.messages, { role: 'user', content }] }
+      return {
+        ...prev,
+        loading: true,
+        messages: [...prev.messages, { role: 'user', content, createdAt: new Date().toISOString() }],
+      }
     })
 
     try {
@@ -228,24 +275,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return {
           ...prev,
           loading: false,
-          messages: [...prev.messages, { role: 'assistant', content: data.message.content }],
+          messages: [...prev.messages, data.message],
           conversationId: prev.conversationId ?? data.conversationId,
           conversationTitle: prev.conversationTitle ?? content.slice(0, 50),
         }
       })
 
-      if (isNew) {
-        await loadConversations()
-      }
+      // The coach may have saved profile data with update_profile
+      await Promise.all([isNew ? loadConversations() : Promise.resolve(), loadProfile()])
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
       setState(prev => ({
         ...prev,
         loading: false,
-        messages: [...prev.messages, { role: 'assistant', content: `Error: ${msg}` }],
+        messages: [...prev.messages, { role: 'assistant', content: `Error: ${msg}`, createdAt: new Date().toISOString() }],
       }))
     }
-  }, [loadConversations])
+  }, [loadConversations, loadProfile])
+
+  // Analyze a Wahoo workout: the backend creates a new conversation with the coach's analysis
+  const analyzeWorkout = useCallback(async (workoutId: number) => {
+    if (!auth.currentUser) return
+    set({ showWorkoutsModal: false, loading: true, conversationId: null, conversationTitle: 'análisis de entreno', messages: [] })
+    try {
+      const res = await apiFetch(`/wahoo/workouts/${workoutId}/analyze`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      await Promise.all([loadConversation(data.conversationId), loadConversations()])
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      set({ messages: [{ role: 'assistant', content: `Error al analizar el entreno: ${msg}`, createdAt: new Date().toISOString() }] })
+    } finally {
+      set({ loading: false })
+    }
+  }, [set, loadConversation, loadConversations])
 
   const saveProfile = useCallback(async (data: Partial<Profile>) => {
     if (!auth.currentUser) return
@@ -278,7 +341,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       closeProfileModal,
       checkWahooStatus,
       connectWahoo,
+      disconnectWahoo,
+      openWahooModal,
       dismissWahooModal,
+      openWorkoutsModal,
+      closeWorkoutsModal,
+      analyzeWorkout,
       showNotification,
       clearNotification,
     }}>

@@ -716,3 +716,56 @@ textarea::placeholder { color: var(--text3); }
 }
 
 .notification.show { transform: translateY(0); opacity: 1; }
+
+/* MARKDOWN EN MENSAJES DEL COACH */
+.msg-markdown { white-space: normal; }
+.msg-markdown > * + * { margin-top: 0.6rem; }
+.msg-markdown h1, .msg-markdown h2, .msg-markdown h3, .msg-markdown h4 {
+  font-size: 13px; font-weight: 600; color: var(--accent); margin-top: 0.9rem;
+}
+.msg-markdown ul, .msg-markdown ol { padding-left: 1.25rem; }
+.msg-markdown li + li { margin-top: 0.2rem; }
+.msg-markdown strong { color: var(--text); }
+.msg-markdown code {
+  background: var(--bg3); border-radius: 4px; padding: 1px 5px; font-size: 12px;
+}
+.msg-markdown pre { background: var(--bg3); border-radius: 6px; padding: 0.6rem 0.8rem; overflow-x: auto; }
+.msg-markdown pre code { padding: 0; background: none; }
+.msg-markdown table { border-collapse: collapse; width: 100%; font-size: 12px; display: block; overflow-x: auto; }
+.msg-markdown th, .msg-markdown td { border: 1px solid var(--border2); padding: 4px 8px; text-align: left; }
+.msg-markdown th { color: var(--text2); font-weight: 600; }
+.msg-markdown blockquote { border-left: 2px solid var(--accent2); padding-left: 0.75rem; color: var(--text2); }
+.msg-markdown hr { border: none; border-top: 1px solid var(--border2); }
+
+/* Mensaje técnico que dispara un análisis de Wahoo: plegado por defecto */
+.msg-analysis summary { cursor: pointer; }
+.msg-analysis-data { margin-top: 0.5rem; color: var(--text2); font-size: 12px; white-space: pre-wrap; }
+
+/* MODAL DE ENTRENOS */
+.workouts-modal { width: 520px; max-width: calc(100vw - 32px); max-height: 85vh; overflow-y: auto; }
+.workouts-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.workout-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+}
+.workout-main { min-width: 0; }
+.workout-name { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.workout-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.workout-metrics { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 11px; color: var(--accent2); margin-top: 4px; }
+.workouts-empty { font-size: 12px; color: var(--text3); text-align: center; padding: 0.5rem; }
+
+/* PERFIL: ZONAS Y WAHOO */
+.zones-table { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 1rem; }
+.zone-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.zone-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.zone-label { color: var(--text2); width: 22px; }
+.zone-range { color: var(--text); }
+.profile-wahoo {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--text2);
+  padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 8px;
+}
+.wahoo-on { color: var(--accent); font-weight: 600; }
+
+/* Los modales largos (perfil ampliado) hacen scroll en pantallas bajas */
+.modal { max-height: 90vh; overflow-y: auto; max-width: calc(100vw - 32px); }

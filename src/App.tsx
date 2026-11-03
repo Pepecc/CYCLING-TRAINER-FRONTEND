@@ -5,6 +5,7 @@ import { Sidebar } from './components/layout/Sidebar'
 import { ChatArea } from './components/chat/ChatArea'
 import { ProfileModal } from './components/profile/ProfileModal'
 import { WahooConnectModal } from './components/wahoo/WahooConnectModal'
+import { WorkoutsModal } from './components/wahoo/WorkoutsModal'
 import { Notification } from './components/ui/Notification'
 
 export function App() {
@@ -25,6 +26,7 @@ export function App() {
       )}
       {state.showProfileModal && <ProfileModal />}
       {state.uid && state.showWahooModal && state.wahooConnected === false && <WahooConnectModal />}
+      {state.uid && state.showWorkoutsModal && state.wahooConnected === true && <WorkoutsModal />}
       <Notification />
     </>
   )
