@@ -9,7 +9,7 @@ import {
 } from 'firebase/auth'
 import { auth } from '../firebase'
 import { apiFetch } from '../api/client'
-import type { Profile, Message, ConversationSummary } from '../types'
+import type { Profile, Message, ConversationSummary, OutgoingImage } from '../types'
 
 const WAHOO_DISMISSED_KEY = 'wahooModalDismissed'
 
@@ -48,7 +48,7 @@ interface AppContextValue {
   loadConversations: () => Promise<void>
   loadConversation: (id: string) => Promise<void>
   newConversation: () => void
-  sendMessage: (content: string) => Promise<void>
+  sendMessage: (content: string, images?: OutgoingImage[]) => Promise<void>
   loadProfile: () => Promise<void>
   saveProfile: (data: Partial<Profile>) => Promise<void>
   openProfileModal: () => void
@@ -248,7 +248,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     set({ conversationId: null, conversationTitle: null, messages: [] })
   }, [set])
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, images: OutgoingImage[] = []) => {
     if (!auth.currentUser) return
 
     let currentConvId: string | null = null
@@ -257,14 +257,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return {
         ...prev,
         loading: true,
-        messages: [...prev.messages, { role: 'user', content, createdAt: new Date().toISOString() }],
+        messages: [...prev.messages, {
+          role: 'user',
+          content,
+          createdAt: new Date().toISOString(),
+          localImages: images.map(img => img.previewUrl),
+        }],
       }
     })
 
     try {
       const res = await apiFetch('/chat/message', {
         method: 'POST',
-        body: JSON.stringify({ content, conversationId: currentConvId }),
+        body: JSON.stringify({
+          content,
+          conversationId: currentConvId,
+          images: images.map(({ mediaType, data, name }) => ({ mediaType, data, name })),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -277,7 +286,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           loading: false,
           messages: [...prev.messages, data.message],
           conversationId: prev.conversationId ?? data.conversationId,
-          conversationTitle: prev.conversationTitle ?? content.slice(0, 50),
+          conversationTitle: prev.conversationTitle ?? (content.slice(0, 50) || 'Imagen'),
         }
       })
 

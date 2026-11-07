@@ -9,16 +9,33 @@ export interface Profile {
   maxHr: number | null
   restingHr: number | null
   availableDays: string | null
-  targetEvents: string | null
   limitations: string | null
   updatedAt: string
 }
 
+export interface MessageAttachment {
+  id: string
+  mediaType: string
+  name: string | null
+  sizeBytes: number
+}
+
+// Image ready to send (already shrunk); previewUrl is a data URL to show it before the server answers
+export interface OutgoingImage {
+  mediaType: string
+  data: string
+  name: string
+  previewUrl: string
+}
+
 export interface Message {
   id?: string
+  conversationId?: string
   role: 'user' | 'assistant'
   content: string
   createdAt?: string
+  attachments?: MessageAttachment[]
+  localImages?: string[]      // previews of images just sent (not reloaded from the server yet)
 }
 
 export interface WahooWorkoutSummary {

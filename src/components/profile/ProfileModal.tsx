@@ -18,7 +18,6 @@ export function ProfileModal() {
   const [maxHr, setMaxHr] = useState(p?.maxHr?.toString() ?? '')
   const [restingHr, setRestingHr] = useState(p?.restingHr?.toString() ?? '')
   const [availableDays, setAvailableDays] = useState(p?.availableDays ?? '')
-  const [targetEvents, setTargetEvents] = useState(p?.targetEvents ?? '')
   const [limitations, setLimitations] = useState(p?.limitations ?? '')
 
   const ftpNum = parseInt(ftp) || 0
@@ -39,7 +38,6 @@ export function ProfileModal() {
         maxHr: parseInt(maxHr) || null,
         restingHr: parseInt(restingHr) || null,
         availableDays: availableDays.trim() || null,
-        targetEvents: targetEvents.trim() || null,
         limitations: limitations.trim() || null,
       })
     } catch (err) {
@@ -111,10 +109,6 @@ export function ProfileModal() {
           <div className="field span2">
             <label>Días disponibles</label>
             <input type="text" placeholder="ej: martes, jueves, sábado y domingo" value={availableDays} onChange={e => setAvailableDays(e.target.value)} />
-          </div>
-          <div className="field span2">
-            <label>Eventos objetivo y fechas</label>
-            <input type="text" placeholder="ej: Quebrantahuesos 20/06/2027" value={targetEvents} onChange={e => setTargetEvents(e.target.value)} />
           </div>
           <div className="field span2">
             <label>Lesiones o limitaciones</label>

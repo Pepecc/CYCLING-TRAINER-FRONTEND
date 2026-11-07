@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Message } from '../../types'
+import { MessageImages } from './MessageImages'
 
 // Prefix of the context message the backend sends when analyzing a Wahoo workout
 const ANALYSIS_PREFIX = 'ENTRENO A ANALIZAR'
@@ -24,7 +25,10 @@ export function MessageBubble({ message }: { message: Message }) {
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
         </div>
       ) : (
-        <div className="msg-bubble">{message.content}</div>
+        <>
+          <MessageImages message={message} />
+          {message.content && <div className="msg-bubble">{message.content}</div>}
+        </>
       )}
       <div className="msg-time">{time}</div>
     </div>
