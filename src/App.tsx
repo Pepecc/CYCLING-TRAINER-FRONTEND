@@ -7,6 +7,8 @@ import { ProfileModal } from './components/profile/ProfileModal'
 import { WahooConnectModal } from './components/wahoo/WahooConnectModal'
 import { WorkoutsModal } from './components/wahoo/WorkoutsModal'
 import { Notification } from './components/ui/Notification'
+import { CalendarView } from './components/plan/CalendarView'
+import { FormView } from './components/plan/FormView'
 
 export function App() {
   const { state } = useApp()
@@ -19,8 +21,10 @@ export function App() {
         <div className="app-screen">
           <TopBar />
           <div className="main">
-            <Sidebar />
-            <ChatArea />
+            {state.view === 'chat' && <Sidebar />}
+            {state.view === 'chat' && <ChatArea />}
+            {state.view === 'calendar' && <CalendarView />}
+            {state.view === 'form' && <FormView />}
           </div>
         </div>
       )}

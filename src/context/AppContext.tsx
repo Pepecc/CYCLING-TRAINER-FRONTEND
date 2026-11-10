@@ -24,7 +24,10 @@ function writeDismissed(value: boolean): void {
   } catch {}
 }
 
+export type AppView = 'chat' | 'calendar' | 'form'
+
 interface AppState {
+  view: AppView
   uid: string | null
   email: string | null
   conversationId: string | null
@@ -63,12 +66,14 @@ interface AppContextValue {
   analyzeWorkout: (workoutId: number) => Promise<void>
   showNotification: (msg: string) => void
   clearNotification: () => void
+  setView: (view: AppView) => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>({
+    view: 'chat',
     uid: null,
     email: null,
     conversationId: null,
@@ -184,6 +189,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await Promise.all([loadConversations(), loadProfile(), checkWahooStatus()])
       } else {
         set({
+          view: 'chat',
           uid: null,
           email: null,
           conversationId: null,
@@ -237,6 +243,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const data = await res.json()
       const conv = data.conversation
       set({
+        view: 'chat',
         conversationId: id,
         conversationTitle: conv.title || 'sesión',
         messages: conv.messages,
@@ -245,7 +252,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [set])
 
   const newConversation = useCallback(() => {
-    set({ conversationId: null, conversationTitle: null, messages: [] })
+    set({ view: 'chat', conversationId: null, conversationTitle: null, messages: [] })
   }, [set])
 
   const sendMessage = useCallback(async (content: string, images: OutgoingImage[] = []) => {
@@ -305,7 +312,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Analyze a Wahoo workout: the backend creates a new conversation with the coach's analysis
   const analyzeWorkout = useCallback(async (workoutId: number) => {
     if (!auth.currentUser) return
-    set({ showWorkoutsModal: false, loading: true, conversationId: null, conversationTitle: 'análisis de entreno', messages: [] })
+    set({ view: 'chat', showWorkoutsModal: false, loading: true, conversationId: null, conversationTitle: 'análisis de entreno', messages: [] })
     try {
       const res = await apiFetch(`/wahoo/workouts/${workoutId}/analyze`, { method: 'POST' })
       const data = await res.json()
@@ -333,6 +340,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const openProfileModal  = useCallback(() => set({ showProfileModal: true }),  [set])
   const closeProfileModal = useCallback(() => set({ showProfileModal: false }), [set])
+  const setView = useCallback((view: AppView) => set({ view }), [set])
 
   return (
     <AppContext.Provider value={{
@@ -358,6 +366,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       analyzeWorkout,
       showNotification,
       clearNotification,
+      setView,
     }}>
       {children}
     </AppContext.Provider>
