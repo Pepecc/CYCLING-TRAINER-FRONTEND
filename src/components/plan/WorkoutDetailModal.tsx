@@ -5,6 +5,9 @@ import type { PlannedWorkout, PlannedStatus, WorkoutEnvironment, AdaptResult } f
 import { FOCUS_LABEL, ENV_LABEL, STATUS_LABEL } from './labels'
 import { WorkoutProfile, WorkoutBlocks } from './WorkoutStructure'
 import { formatLong, formatMinutes, formatShort, todayKey } from '../../utils/dates'
+import { downloadWorkout } from '../../api/progress'
+import { RecordTestForm } from '../progress/RecordTestForm'
+import { PROTOCOL } from '../progress/labels'
 
 interface Props {
   workout: PlannedWorkout
@@ -24,6 +27,8 @@ export function WorkoutDetailModal({ workout, onClose, onChanged }: Props) {
   const [env, setEnv] = useState<WorkoutEnvironment>(w.adaptation?.environment ?? (w.environment === 'outdoor' ? 'indoor' : w.environment))
   const [minutes, setMinutes] = useState(w.adaptation?.availableMinutes?.toString() ?? '')
   const [preview, setPreview] = useState<AdaptResult | null>(null)
+  const [exportWarnings, setExportWarnings] = useState<string[]>([])
+  const [recording, setRecording] = useState(false)
 
   function apply(next: PlannedWorkout) {
     setW(next)
@@ -69,6 +74,10 @@ export function WorkoutDetailModal({ workout, onClose, onChanged }: Props) {
     showNotification('Vuelve a la versión original')
   })
 
+  const download = (format: 'fit' | 'zwo') => run(async () => {
+    setExportWarnings(await downloadWorkout(w.id, format))
+  })
+
   const remove = () => {
     if (!confirmDelete) { setConfirmDelete(true); return }
     run(async () => {
@@ -80,7 +89,9 @@ export function WorkoutDetailModal({ workout, onClose, onChanged }: Props) {
 
   const c = w.completion
   const isPast = w.date < todayKey()
-  const canAdapt = w.status === 'planned' && w.focus !== 'rest' && w.focus !== 'strength'
+  const canAdapt = w.status === 'planned' && w.focus !== 'rest' && w.focus !== 'strength' && w.focus !== 'test'
+  const isTest = w.focus === 'test'
+  const testField = w.testProtocol ? PROTOCOL[w.testProtocol].field : 'ftp'
 
   return (
     <div className="modal-overlay visible" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -126,6 +137,20 @@ export function WorkoutDetailModal({ workout, onClose, onChanged }: Props) {
             <ul className="detail-list">{w.adaptation.changes.map((ch, i) => <li key={i}>{ch}</li>)}</ul>
             {w.adaptation.warnings.map((wn, i) => <div key={i} className="warn">⚠ {wn}</div>)}
             <button className="btn-ghost" onClick={restore} disabled={busy}>volver a la original</button>
+          </div>
+        )}
+
+        {isTest && (
+          <div className="detail-box">
+            <div className="detail-box-title">Test{w.testProtocol && <> · {PROTOCOL[w.testProtocol].title}</>}</div>
+            <div className="muted">
+              El resultado actualiza el perfil ({testField === 'ftp' ? 'el FTP y las zonas de potencia' : 'la FC y las zonas de FC'}) y el TSS previsto del plan.
+            </div>
+            {w.date > todayKey()
+              ? <div className="muted">Podrás registrar el resultado el día del test.</div>
+              : recording
+                ? <RecordTestForm plannedWorkout={w} onSaved={r => { if (r.plannedWorkout) apply(r.plannedWorkout); setRecording(false) }} />
+                : <button className="btn-ghost accent" onClick={() => setRecording(true)}>registrar resultado</button>}
           </div>
         )}
 
@@ -180,6 +205,15 @@ export function WorkoutDetailModal({ workout, onClose, onChanged }: Props) {
             </div>
           </div>
         )}
+
+        {w.blocks.length > 0 && (
+          <div className="detail-actions">
+            <span className="muted small">Descargar</span>
+            <button className="btn-ghost" onClick={() => download('fit')} disabled={busy} title="Entreno estructurado para el ELEMNT de Wahoo y los Garmin">.fit (ELEMNT)</button>
+            <button className="btn-ghost" onClick={() => download('zwo')} disabled={busy} title="Zwift y otras apps de rodillo (solo potencia)">.zwo</button>
+          </div>
+        )}
+        {exportWarnings.map((wn, i) => <div key={i} className="warn small">⚠ {wn}</div>)}
 
         {error && <div className="auth-error">{error}</div>}
 

@@ -1095,3 +1095,75 @@ textarea::placeholder { color: var(--text3); }
   .adapt-compare { grid-template-columns: 1fr; }
   .phase-now { margin-left: 0; }
 }
+
+/* ═══ 7.11 CHECK-IN, TESTS, RESUMEN SEMANAL Y EXPORTAR ═══ */
+.btn-link {
+  background: none; border: none; padding: 0; font-family: inherit; font-size: 10px; color: var(--text3);
+  cursor: pointer; text-align: left; letter-spacing: 0.03em;
+}
+.btn-link:hover { color: var(--accent); }
+.accent-text { color: var(--accent); }
+.field input[type="date"] { color-scheme: dark; }
+
+/* Disponibilidad (readiness): color + texto en el título / la etiqueta */
+.readiness-good { --rd: var(--ok); }
+.readiness-normal { --rd: var(--text2); }
+.readiness-caution { --rd: var(--warn); }
+.readiness-rest { --rd: var(--bad); }
+.readiness-dot {
+  background: none; border: none; padding: 0 2px; margin-left: 4px; font-size: 10px; line-height: 1;
+  color: var(--rd, var(--text2)); cursor: pointer; vertical-align: 1px;
+}
+.readiness-dot.static { cursor: inherit; margin: 0 4px 0 0; }
+.cal-day { display: flex; align-items: center; justify-content: space-between; }
+.cal-week-day-head { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.cal-week-day-head .btn-link { margin-left: auto; }
+.detail-box.readiness { border-color: var(--rd); }
+.detail-box.readiness .detail-box-title { color: var(--rd); }
+
+/* Check-in */
+.checkin-modal { width: 460px; gap: 0.85rem; }
+.scale-row { display: grid; grid-template-columns: 130px 1fr; grid-template-rows: auto auto; column-gap: 0.75rem; row-gap: 2px; align-items: center; }
+.scale-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; grid-row: span 2; }
+.scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.scale-btn {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; color: var(--text2);
+  font-family: inherit; font-size: 13px; padding: 0.4rem 0; cursor: pointer; min-height: 34px;
+}
+.scale-btn:hover { border-color: var(--border2); color: var(--text); }
+.scale-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,255,71,0.08); font-weight: 600; }
+.scale-btn.active.bad { border-color: var(--warn); color: var(--warn); background: rgba(224,160,48,0.08); }
+.scale-ends { display: flex; justify-content: space-between; font-size: 10px; }
+
+/* Tests */
+.test-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.detail-box.due { border-color: var(--warn); }
+.detail-box.due .detail-box-title { color: var(--warn); }
+.zones-compare { border-collapse: collapse; width: 100%; font-size: 12px; }
+.zones-compare th, .zones-compare td { padding: 3px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+.zones-compare th { color: var(--text3); font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Resumen semanal */
+.reco .tag { margin-right: 4px; }
+.reco-progress { border-color: var(--ok); }
+.reco-progress .tag { border-color: var(--ok); color: var(--ok); }
+.reco-maintain .tag { border-color: var(--text2); color: var(--text); }
+.reco-reduce { border-color: var(--warn); }
+.reco-reduce .tag { border-color: var(--warn); color: var(--warn); }
+.reco-recover { border-color: var(--bad); }
+.reco-recover .tag { border-color: var(--bad); color: var(--bad); }
+.summary-table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+.summary-table th, .summary-table td { padding: 5px 8px; text-align: right; border-bottom: 1px solid var(--border); }
+.summary-table th:first-child, .summary-table td:first-child { text-align: left; color: var(--text2); }
+.summary-table th { color: var(--text3); font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+.key-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.key-list li { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.key-list .tag { margin-left: auto; }
+.week-summary .btn-link { align-self: flex-start; margin-top: 2px; }
+
+@media (max-width: 720px) {
+  .scale-row { grid-template-columns: 1fr; }
+  .scale-label { grid-row: auto; }
+  .scale-btn { min-height: 40px; }
+  .topbar-right { flex-wrap: wrap; }
+}

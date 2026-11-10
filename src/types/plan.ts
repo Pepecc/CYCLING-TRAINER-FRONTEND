@@ -67,6 +67,7 @@ export interface PlannedWorkout {
   adaptation: WorkoutAdaptation | null
   statusSource: 'auto' | 'manual' | null
   completion: WorkoutCompletion | null
+  testProtocol: 'ftp_20min' | 'ftp_8min' | 'ramp' | 'max_hr' | 'resting_hr' | null   // test programado (7.11)
   createdAt: string
   updatedAt: string
 }

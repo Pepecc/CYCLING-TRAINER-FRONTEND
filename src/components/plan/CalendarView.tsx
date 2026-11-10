@@ -11,6 +11,11 @@ import { WorkoutProfile } from './WorkoutStructure'
 import { WorkoutDetailModal } from './WorkoutDetailModal'
 import { RaceModal } from './RaceModal'
 import { ImportModal } from './ImportModal'
+import { checkInsApi } from '../../api/progress'
+import type { CheckIn } from '../../types/progress'
+import { CheckInModal, ReadinessDot, CHECKIN_SAVED_EVENT } from '../progress/CheckInModal'
+import { WeeklySummaryModal } from '../progress/WeeklySummaryModal'
+import { TestsModal } from '../progress/TestsModal'
 
 type Mode = 'month' | 'week'
 
@@ -44,8 +49,28 @@ export function CalendarView() {
   const [selected, setSelected] = useState<PlannedWorkout | null>(null)
   const [selectedRace, setSelectedRace] = useState<RaceEvent | null>(null)
   const [showImport, setShowImport] = useState(false)
+  const [checkIns, setCheckIns] = useState<Map<string, CheckIn>>(new Map())
+  const [checkInDate, setCheckInDate] = useState<string | null>(null)
+  const [summaryMonday, setSummaryMonday] = useState<string | null>(null)
+  const [showTests, setShowTests] = useState(false)
 
   const { from, to, weeks } = rangeFor(mode, anchor)
+
+  // Check-ins of the visible range (only past days and today can have one)
+  const loadCheckIns = useCallback(async () => {
+    if (from > today) { setCheckIns(new Map()); return }
+    try {
+      const r = await checkInsApi.list(from, to < today ? to : today)
+      setCheckIns(new Map(r.checkIns.map(c => [c.date, c])))
+    } catch {
+      // The calendar works without them
+    }
+  }, [from, to, today])
+  useEffect(() => { loadCheckIns() }, [loadCheckIns])
+  useEffect(() => {
+    window.addEventListener(CHECKIN_SAVED_EVENT, loadCheckIns)
+    return () => window.removeEventListener(CHECKIN_SAVED_EVENT, loadCheckIns)
+  }, [loadCheckIns])
 
   // Only the latest request updates the view (fast navigation can overlap requests)
   const requestId = useRef(0)
@@ -139,6 +164,8 @@ export function CalendarView() {
             <button className={mode === 'month' ? 'active' : ''} onClick={() => setMode('month')}>mes</button>
             <button className={mode === 'week' ? 'active' : ''} onClick={() => setMode('week')}>semana</button>
           </div>
+          <button className="btn-ghost" onClick={() => setSummaryMonday(mondayOf(today))}>resumen</button>
+          <button className="btn-ghost" onClick={() => setShowTests(true)}>tests</button>
           <button className="btn-ghost" onClick={() => setShowImport(true)}>importar</button>
         </div>
       </div>
@@ -161,7 +188,10 @@ export function CalendarView() {
                   key={date}
                   className={`cal-cell ${date.slice(0, 7) !== anchor.slice(0, 7) ? 'other-month' : ''} ${date === today ? 'today' : ''}`}
                 >
-                  <div className="cal-day">{dayOfMonth(date)}</div>
+                  <div className="cal-day">
+                    {dayOfMonth(date)}
+                    {checkIns.get(date) && <ReadinessDot checkIn={checkIns.get(date)!} onClick={() => setCheckInDate(date)} />}
+                  </div>
                   {racesOn(date).map(r => (
                     <button key={r.id} className={`chip chip-race prio-${r.priority}`} onClick={() => setSelectedRace(r)} title={r.name}>
                       ⚑ {r.name}
@@ -186,13 +216,15 @@ export function CalendarView() {
                   ))}
                 </div>
               ))}
-              <WeekSummary monday={monday} plan={plan} season={seasonWeek.get(monday)} />
+              <WeekSummary monday={monday} plan={plan} season={seasonWeek.get(monday)}
+                onOpen={monday <= today ? () => setSummaryMonday(monday) : undefined} />
             </div>
           ))}
         </div>
       ) : (
         <div className="cal-week">
-          <WeekSummary monday={from} plan={plan} season={seasonWeek.get(from)} wide />
+          <WeekSummary monday={from} plan={plan} season={seasonWeek.get(from)} wide
+            onOpen={from <= today ? () => setSummaryMonday(from) : undefined} />
           <div className="cal-week-days">
             {Array.from({ length: 7 }, (_, i) => addDays(from, i)).map(date => {
               const workouts = byDate.workouts.get(date) ?? []
@@ -202,6 +234,11 @@ export function CalendarView() {
                 <div key={date} className={`cal-week-day ${date === today ? 'today' : ''}`}>
                   <div className="cal-week-day-head">
                     <span>{formatWeekday(date)}</span> <span className="muted">{formatShort(date)}</span>
+                    {checkIns.get(date)
+                      ? <ReadinessDot checkIn={checkIns.get(date)!} onClick={() => setCheckInDate(date)} />
+                      : date <= today && daysBetween(date, today) <= 60 && (
+                        <button className="btn-link" onClick={() => setCheckInDate(date)} title="Registrar cómo te encontrabas ese día">+ check-in</button>
+                      )}
                   </div>
                   {races.map(r => (
                     <button key={r.id} className={`chip chip-race prio-${r.priority}`} onClick={() => setSelectedRace(r)}>⚑ {r.name}</button>
@@ -252,6 +289,20 @@ export function CalendarView() {
           onClose={() => setSelectedRace(null)}
         />
       )}
+      {checkInDate && (
+        <CheckInModal date={checkInDate} onClose={() => setCheckInDate(null)} />
+      )}
+      {summaryMonday && <WeeklySummaryModal monday={summaryMonday} onClose={() => setSummaryMonday(null)} />}
+      {showTests && (
+        <TestsModal
+          onClose={() => setShowTests(false)}
+          onScheduled={date => {
+            const next = rangeFor(mode, date)
+            if (next.from === from && next.to === to) loadPlan()
+            else setAnchor(date)
+          }}
+        />
+      )}
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
@@ -270,7 +321,9 @@ export function CalendarView() {
 }
 
 // Carga de la semana: planificado frente a hecho, y el tipo de semana del plan de temporada
-function WeekSummary({ monday, plan, season, wide }: { monday: string; plan: PlanResponse | null; season?: SeasonWeek; wide?: boolean }) {
+function WeekSummary({ monday, plan, season, wide, onOpen }: {
+  monday: string; plan: PlanResponse | null; season?: SeasonWeek; wide?: boolean; onOpen?: () => void
+}) {
   const sunday = addDays(monday, 6)
   const ws = (plan?.workouts ?? []).filter(w => w.date >= monday && w.date <= sunday)
   const plannedTss = ws.reduce((s, w) => s + (w.plannedTss ?? 0), 0)
@@ -295,6 +348,9 @@ function WeekSummary({ monday, plan, season, wide }: { monday: string; plan: Pla
           <span className="muted">hecho</span> {Math.round(doneTss)} TSS · {formatMinutes(doneMin + extraMin)}
           {extra.length > 0 && <span className="muted"> ({extra.length} fuera del plan)</span>}
         </div>
+      )}
+      {onOpen && (ws.length > 0 || hasDone) && (
+        <button className="btn-link" onClick={onOpen} title="Planificado frente a hecho y recomendación">resumen ›</button>
       )}
     </div>
   )
